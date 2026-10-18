@@ -8,7 +8,7 @@ license = "MIT"
 keywords = ["ezviz", "cctv", "ptz", "hikvision", "ezopen", "camera"]
 categories = ["api-bindings", "multimedia"]
 readme = "README.md"
-repository = "https://github.com/your-org/ezviz-openapi-rs"
+repository = "https://github.com/Zakarialabib/ezviz-openapi-rs"
 documentation = "https://docs.rs/ezviz-openapi"
 
 [features]
