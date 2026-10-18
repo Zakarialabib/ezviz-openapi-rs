@@ -37,7 +37,7 @@
 //! # Ok(()) }
 //! ```
 //!
-//! See [`docs/api-reference.md`](https://github.com/your-org/ezviz-openapi-rs/blob/main/docs/api-reference.md)
+//! See [`docs/api-reference.md`](https://github.com/Zakarialabib/ezviz-openapi-rs/blob/main/docs/api-reference.md)
 //! for the full endpoint table, error codes and a flow diagram of the API.
 
 pub mod alarm;
@@ -51,7 +51,7 @@ pub mod ptz;
 pub mod token;
 pub mod types;
 
-#[cfg(all(feature = "pc-sdk", target_os = "windows"))]
+#[cfg(feature = "pc-sdk")]
 pub mod pc_sdk;
 
 pub use client::EzvizClient;

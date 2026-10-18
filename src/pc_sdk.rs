@@ -119,6 +119,12 @@ pub struct PcSdk {
 impl PcSdk {
     /// Load the SDK from the standard search locations (see module docs).
     pub fn load() -> Result<Self> {
+        if !cfg!(target_os = "windows") {
+            return Err(EzvizError::Sdk(
+                "PCOpenSDK (OpenNetStream.dll) is only supported on Windows".into(),
+            ));
+        }
+
         let mut candidates: Vec<std::path::PathBuf> = Vec::new();
         if let Ok(dir) = std::env::var("EZVIZ_SDK_DIR") {
             let base = std::path::PathBuf::from(dir);
@@ -145,6 +151,12 @@ impl PcSdk {
 
     /// Load from an explicit DLL path.
     pub fn load_from(path: impl AsRef<std::path::Path>) -> Result<Self> {
+        if !cfg!(target_os = "windows") {
+            return Err(EzvizError::Sdk(
+                "PCOpenSDK (OpenNetStream.dll) is only supported on Windows".into(),
+            ));
+        }
+
         let lib = unsafe { Library::new(path.as_ref()) }
             .map_err(|e| EzvizError::Sdk(format!("load {}: {e}", path.as_ref().display())))?;
         Ok(PcSdk { lib })
@@ -417,3 +429,19 @@ impl PcSdk {
 // The SDK is safe to share across threads for independent sessions.
 unsafe impl Send for PcSdk {}
 unsafe impl Sync for PcSdk {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn test_pc_sdk_load_non_windows_graceful_error() {
+        match PcSdk::load() {
+            Err(EzvizError::Sdk(msg)) => {
+                assert!(msg.contains("only supported on Windows"));
+            }
+            _ => panic!("expected EzvizError::Sdk on non-Windows"),
+        }
+    }
+}
