@@ -96,7 +96,17 @@ cargo publish --dry-run
 MIT. The EZVIZ PCOpenSDK is proprietary and licensed separately by EZVIZ; this
 crate only loads it at runtime and does not include it.
 
-## Reference
+## Documentation
 
-`docs/api-reference.md` — full endpoint table, error codes, and a flow diagram
-of the API surface.
+Start at [`docs/README.md`](docs/README.md).
+
+| File | Purpose |
+|---|---|
+| [`docs/00-rust-package-standard.md`](docs/00-rust-package-standard.md) | The reusable Rust package engineering standard this crate follows. Identical copy in `tv-rs`. |
+| [`docs/01-api-reference.md`](docs/01-api-reference.md) | Full endpoint table, parameters, error codes, and a flow diagram of the API surface. The authoritative reference. |
+| [`docs/01-spec-011-cctv-integration-v2.md`](docs/01-spec-011-cctv-integration-v2.md) | How CCTV plugs into the signage platform: live widget, alarm interrupt, snapshot. |
+| [`docs/01-spec-011-cctv-integration-v1.md`](docs/01-spec-011-cctv-integration-v1.md) | Superseded first revision, kept for history. |
+| [`docs/02-external-refs.md`](docs/02-external-refs.md) | REA reverse-engineering tooling and the decision to build on this crate rather than on REA. |
+
+Naming and layout rules are shared with the `tv-rs` workspace — see
+`tv-rs/docs/00-naming-conventions.md`.

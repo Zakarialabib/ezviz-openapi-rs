@@ -1,8 +1,9 @@
-# REA MCP — usage, benefit, and the integration decision
+# External References — REA MCP tooling and the integration decision
 
 Scope: how the REA reverse-engineering MCP server is used, what it gave this
 project, and why the EZVIZ CCTV integration is built on the in-house Rust crate
-(`ezviz-openapi`) instead of on REA.
+(`ezviz-openapi`) instead of on REA. For the official EZVIZ endpoints and hosts
+this crate targets, see `01-api-reference.md`.
 
 ---
 
