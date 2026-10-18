@@ -9,10 +9,13 @@ use serde::Deserialize;
 /// A device in the current account (`/api/lapp/device/list`).
 #[derive(Debug, Clone, Deserialize)]
 pub struct DeviceInfo {
+    /// Device serial number (`deviceSerial`).
     #[serde(rename = "deviceSerial")]
     pub device_serial: String,
+    /// Device name (`deviceName`).
     #[serde(rename = "deviceName")]
     pub device_name: String,
+    /// Device type code (`deviceType`).
     #[serde(rename = "deviceType", default)]
     pub device_type: Option<String>,
     /// Online status: 0 = offline, 1 = online.
@@ -22,12 +25,16 @@ pub struct DeviceInfo {
     /// others: 0 disarm / 1 arm).
     #[serde(default)]
     pub defence: i32,
+    /// Firmware/version string (`deviceVersion`).
     #[serde(rename = "deviceVersion", default)]
     pub device_version: Option<String>,
+    /// Whether the device is encrypted (`isEncrypt`).
     #[serde(rename = "isEncrypt", default)]
     pub is_encrypt: Option<i32>,
+    /// Last status update time (`updateTime`).
     #[serde(rename = "updateTime", default)]
     pub update_time: Option<String>,
+    /// Device model (`model`).
     #[serde(rename = "model", default)]
     pub model: Option<String>,
 }
@@ -35,16 +42,22 @@ pub struct DeviceInfo {
 /// Single-device info (`/api/lapp/device/info`).
 #[derive(Debug, Clone, Deserialize)]
 pub struct DeviceDetail {
+    /// Device serial number (`deviceSerial`).
     #[serde(rename = "deviceSerial")]
     pub device_serial: String,
+    /// Device name (`deviceName`).
     #[serde(rename = "deviceName")]
     pub device_name: String,
+    /// Device model (`model`).
     #[serde(default)]
     pub model: Option<String>,
+    /// Online status: 0 = offline, 1 = online.
     #[serde(default)]
     pub status: i32,
+    /// Arming/disarming state (0 disarm / 1 arm on most devices).
     #[serde(default)]
     pub defence: i32,
+    /// Whether the device is encrypted (`isEncrypt`).
     #[serde(rename = "isEncrypt", default)]
     pub is_encrypt: Option<i32>,
     /// Extra fields the platform may add (channels, capability, …) are kept.
@@ -55,28 +68,37 @@ pub struct DeviceDetail {
 /// Camera / channel under a device (`/api/lapp/device/camera/list`).
 #[derive(Debug, Clone, Deserialize)]
 pub struct CameraChannel {
+    /// Serial of the device the channel belongs to (`deviceSerial`).
     #[serde(rename = "deviceSerial")]
     pub device_serial: String,
+    /// Serial of the IPC bound to this channel (`ipcSerial`).
     #[serde(rename = "ipcSerial", default)]
     pub ipc_serial: Option<String>,
+    /// Channel number (`channelNo`).
     #[serde(rename = "channelNo")]
     pub channel_no: i32,
+    /// Device name (`deviceName`).
     #[serde(rename = "deviceName", default)]
     pub device_name: Option<String>,
+    /// Channel name (`channelName`).
     #[serde(rename = "channelName", default)]
     pub channel_name: Option<String>,
     /// 0 offline, 1 online, -1 not reported.
     #[serde(default)]
     pub status: i32,
+    /// Whether the channel is shared (`isShared`).
     #[serde(rename = "isShared", default)]
     pub is_shared: Option<String>,
+    /// Channel snapshot image URL (`picUrl`).
     #[serde(rename = "picUrl", default)]
     pub pic_url: Option<String>,
+    /// Whether the channel is encrypted (`isEncrypt`).
     #[serde(rename = "isEncrypt", default)]
     pub is_encrypt: Option<i32>,
     /// 0 smooth, 1 BD, 2 HD, 3 FHD.
     #[serde(rename = "videoLevel", default)]
     pub video_level: Option<i32>,
+    /// Whether the channel is linked to a related IPC (`relatedIpc`).
     #[serde(rename = "relatedIpc", default)]
     pub related_ipc: Option<bool>,
 }

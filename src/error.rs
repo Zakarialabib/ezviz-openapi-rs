@@ -7,7 +7,12 @@ use thiserror::Error;
 pub enum EzvizError {
     /// The EZVIZ platform returned a non-`200` `code` in the JSON envelope.
     #[error("EZVIZ API error {code}: {msg}")]
-    Api { code: String, msg: String },
+    Api {
+        /// Platform status code from the JSON envelope.
+        code: String,
+        /// Human-readable message from the JSON envelope.
+        msg: String,
+    },
 
     /// Transport-level failure (DNS, TLS, connect, timeout).
     #[error("HTTP error: {0}")]
@@ -27,4 +32,5 @@ pub enum EzvizError {
     Sdk(String),
 }
 
+/// Crate-wide result alias using [`EzvizError`].
 pub type Result<T> = std::result::Result<T, EzvizError>;

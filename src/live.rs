@@ -9,13 +9,18 @@ use serde::Deserialize;
 /// Stream protocol selector.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StreamProtocol {
+    /// EZVIZ `ezopen` URL (`1`).
     Ezopen = 1,
+    /// HLS (`.m3u8`) URL (`2`).
     Hls = 2,
+    /// RTMP URL (`3`).
     Rtmp = 3,
+    /// HTTP-FLV URL (`4`).
     Flv = 4,
 }
 
 impl StreamProtocol {
+    /// Raw `protocol` value sent to the API.
     pub fn as_raw(self) -> i32 {
         self as i32
     }
@@ -24,24 +29,32 @@ impl StreamProtocol {
 /// Address kind: preview, local recording playback or cloud (CloudPlay) playback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiveType {
+    /// Live preview (`1`).
     Preview = 1,
+    /// Local (device SD-card) recording playback (`2`).
     LocalPlayback = 2,
+    /// Cloud (CloudPlay) recording playback (`3`).
     CloudPlayback = 3,
 }
 
 /// Video quality: main or sub bitrate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VideoQuality {
+    /// Main / high-definition stream (`1`).
     Hd = 1,
+    /// Sub / fluent stream (`2`).
     Fluent = 2,
 }
 
 /// Result of `POST /api/lapp/live/address/get`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct LiveAddress {
+    /// Address id (`id`), used to disable the address.
     #[serde(default)]
     pub id: Option<String>,
+    /// Play URL (`url`).
     pub url: String,
+    /// Expiry, a human-readable string on the international host (`expireTime`).
     #[serde(rename = "expireTime", default)]
     pub expire_time: Option<String>,
 }

@@ -15,6 +15,7 @@ impl ApiCode {
         self.0 == "200"
     }
 
+    /// The code as a string slice.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -58,9 +59,12 @@ impl<'de> Deserialize<'de> for ApiCode {
 /// Paging metadata returned at the top level of list endpoints.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PageInfo {
+    /// Total number of records (`total`).
     pub total: i64,
+    /// Current page index (`page`).
     #[serde(rename = "page")]
     pub page: i64,
+    /// Page size (`size`).
     pub size: i64,
 }
 
@@ -70,9 +74,13 @@ pub struct PageInfo {
 /// `page` only appears when `T` is a paged list.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ApiResponse<T> {
+    /// Platform status code (`code`); `200` means success.
     pub code: ApiCode,
+    /// Status message (`msg`), present on most responses.
     pub msg: Option<String>,
+    /// Response payload (`data`), absent on pure-ack endpoints.
     pub data: Option<T>,
+    /// Paging metadata (`page`), present on paged list responses.
     pub page: Option<PageInfo>,
 }
 
@@ -86,7 +94,9 @@ impl<T> ApiResponse<T> {
 /// A paged list result: items plus paging info (when reported).
 #[derive(Debug, Clone)]
 pub struct ListResponse<T> {
+    /// Result items.
     pub items: Vec<T>,
+    /// Paging metadata, when the platform reports it.
     pub page: Option<PageInfo>,
 }
 

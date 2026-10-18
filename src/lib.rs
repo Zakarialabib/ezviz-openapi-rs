@@ -37,8 +37,10 @@
 //! # Ok(()) }
 //! ```
 //!
-//! See [`docs/api-reference.md`](https://github.com/Zakarialabib/ezviz-openapi-rs/blob/main/docs/api-reference.md)
+//! See [`docs/01-api-reference.md`](https://github.com/Zakarialabib/ezviz-openapi-rs/blob/main/docs/01-api-reference.md)
 //! for the full endpoint table, error codes and a flow diagram of the API.
+
+#![deny(missing_docs)]
 
 pub mod alarm;
 pub mod capture;

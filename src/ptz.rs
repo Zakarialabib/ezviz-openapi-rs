@@ -15,21 +15,34 @@ use serde::Deserialize;
 /// PTZ direction / command for the HTTP API.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PtzDirection {
+    /// Up (`0`).
     Up = 0,
+    /// Down (`1`).
     Down = 1,
+    /// Left (`2`).
     Left = 2,
+    /// Right (`3`).
     Right = 3,
+    /// Upper-left (`4`).
     UpperLeft = 4,
+    /// Lower-left (`5`).
     LowerLeft = 5,
+    /// Upper-right (`6`).
     UpperRight = 6,
+    /// Lower-right (`7`).
     LowerRight = 7,
+    /// Zoom in (`8`).
     ZoomIn = 8,
+    /// Zoom out (`9`).
     ZoomOut = 9,
+    /// Focus near (`10`).
     FocusNear = 10,
+    /// Focus far (`11`).
     FocusFar = 11,
 }
 
 impl PtzDirection {
+    /// Raw `direction` value sent to the API.
     pub fn as_raw(self) -> i32 {
         self as i32
     }
@@ -38,12 +51,16 @@ impl PtzDirection {
 /// PTZ speed for the HTTP API: 0 slow, 1 medium, 2 fast.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PtzSpeed {
+    /// Slow (`0`).
     Slow = 0,
+    /// Medium (`1`).
     Medium = 1,
+    /// Fast (`2`).
     Fast = 2,
 }
 
 impl PtzSpeed {
+    /// Raw `speed` value sent to the API.
     pub fn as_raw(self) -> i32 {
         self as i32
     }
@@ -63,6 +80,7 @@ pub enum MirrorCommand {
 /// Response of `POST /api/lapp/device/preset/add` — the assigned preset index.
 #[derive(Debug, Clone, Deserialize)]
 pub struct PresetAdd {
+    /// Assigned preset index (`index`).
     pub index: i32,
 }
 
