@@ -1,0 +1,28 @@
+[package]
+name = "ezviz-openapi"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "Async Rust client for the EZVIZ Open Platform (open.ys7.com / isgpopen.ezvizlife.com) HTTP API: access tokens, device list/info/status, live and playback stream URLs, PTZ control and presets, mirrors, alarms and capture. Optional Windows FFI to the proprietary PCOpenSDK (OpenNetStream) native SDK behind a `pc-sdk` feature."
+license = "MIT"
+keywords = ["ezviz", "cctv", "ptz", "hikvision", "ezopen", "camera"]
+categories = ["api-bindings", "multimedia"]
+readme = "README.md"
+repository = "https://github.com/your-org/ezviz-openapi-rs"
+documentation = "https://docs.rs/ezviz-openapi"
+
+[features]
+default = ["rustls-tls"]
+rustls-tls = ["reqwest/rustls-tls"]
+pc-sdk = ["dep:libloading"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+libloading = { version = "0.8", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6"
