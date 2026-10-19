@@ -42,7 +42,7 @@ impl EzvizClient {
             http: reqwest::Client::builder()
                 .timeout(Duration::from_secs(30))
                 .build()
-                .expect("reqwest client build cannot fail with a timeout only"),
+                .unwrap_or_else(|_| reqwest::Client::new()),
             base_url: std::sync::Arc::new(RwLock::new(DEFAULT_BASE_URL.to_string())),
             token: std::sync::Arc::new(RwLock::new(None)),
         }
@@ -62,7 +62,7 @@ impl EzvizClient {
             )),
             token: std::sync::Arc::new(RwLock::new(None)),
         };
-        *client.token.write().expect("token lock") = Some(TokenEntry {
+        *client.token.write().unwrap_or_else(|p| p.into_inner()) = Some(TokenEntry {
             token: access_token.into(),
             fetched_at: Instant::now(),
         });
@@ -71,18 +71,21 @@ impl EzvizClient {
 
     /// Override the region base URL (normally taken from `areaDomain`).
     pub fn set_base_url(&self, url: impl Into<String>) {
-        *self.base_url.write().expect("base_url lock") = url.into();
+        *self.base_url.write().unwrap_or_else(|p| p.into_inner()) = url.into();
     }
 
     /// The current region base URL.
     pub fn base_url(&self) -> String {
-        self.base_url.read().expect("base_url lock").clone()
+        self.base_url
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
     }
 
     /// The cached access token, fetching one if absent/expired.
     pub async fn access_token(&self) -> Result<String> {
         {
-            let guard = self.token.read().expect("token lock");
+            let guard = self.token.read().unwrap_or_else(|p| p.into_inner());
             if let Some(entry) = guard.as_ref() {
                 if entry.fetched_at.elapsed() < TOKEN_TTL {
                     return Ok(entry.token.clone());
@@ -119,7 +122,7 @@ impl EzvizClient {
             self.set_base_url(domain);
         }
 
-        *self.token.write().expect("token lock") = Some(TokenEntry {
+        *self.token.write().unwrap_or_else(|p| p.into_inner()) = Some(TokenEntry {
             token: info.access_token.clone(),
             fetched_at: Instant::now(),
         });

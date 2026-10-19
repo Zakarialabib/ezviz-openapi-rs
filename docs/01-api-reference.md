@@ -1,138 +1,189 @@
-# EZVIZ Open Platform — API Reference
+# API reference
 
-Source of truth: the official docs at `open.ys7.com/help/en/*` (HTTP Interface)
-and the PCOpenSDK headers shipped in `EZPCOpenSDK_v5.1.18/inc/`. This file is the
-compact, machine-checkable map of the surface this crate implements.
+Every claim here was checked against `src/`. If this document and the source
+disagree, the source is right and this file is a bug.
 
-## Flow
+## Hosts and regions
 
-```mermaid
-flowchart LR
-    A[appKey + appSecret] -->|POST /api/lapp/token/get| T[accessToken + areaDomain]
-    T --> D[Device APIs]
-    T --> L[Live / Playback]
-    T --> P[PTZ / Presets]
-    T --> AL[Alarms]
-    T --> C[Capture]
-    D -->|deviceSerial + channelNo| L
-    D -->|deviceSerial + channelNo| P
-    D -->|deviceSerial| AL
-    D -->|deviceSerial + channelNo| C
-    L -->|HLS/RTMP/FLV/ezopen URL| Player[Signage / HLS player]
-    P -->|direction + speed| Cam[PTZ camera]
+| Constant | Value | Notes |
+|---|---|---|
+| `DEFAULT_BASE_URL` | `https://isgpopen.ezvizlife.com` | international host |
+| `EZVIZ_APP_KEY` / `EZVIZ_APP_SECRET` | env, examples only | never hard-coded in the crate |
+
+A token response carries `areaDomain` — the region-scoped host the token is
+valid against. `refresh_token()` calls `set_base_url(areaDomain)` when it is
+present, so the client follows the region automatically. Calling the wrong host
+with a valid token fails; this is a region mismatch, not a credential problem.
+
+## Response envelope
+
+```json
+{ "code": "200", "msg": "操作成功", "data": …, "page": { "total": 1, "page": 0, "size": 10 } }
 ```
 
-## Hosts
+- `code` — `ApiCode` accepts `"200"` (string) and `200` (integer), because
+  regions differ. `200` means success.
+- `msg` — optional status message.
+- `data` — absent on pure-ack endpoints; that is why `call_ack()` exists.
+- `page` — present on paged lists only.
 
-| Region | Base URL |
-| --- | --- |
-| International (default) | `https://isgpopen.ezvizlife.com` |
-| Per-account (from `areaDomain`) | e.g. `https://iusopen.ezvizlife.com` |
-| China | `https://open.ys7.com` |
+`EzvizError::Api { code, msg }` is returned for any non-`200` code, so the
+platform's own wording reaches the caller unchanged.
 
-All requests are `POST` with `Content-Type: application/x-www-form-urlencoded`.
-Every authenticated call carries `accessToken`. The JSON envelope is
-`{ "code", "msg", "data"?, "page"? }`; `code == "200"` means success.
+## Token lifecycle
+
+`POST /api/lapp/token/get` with `appKey`, `appSecret`.
+
+1. `access_token()` returns the cached token while it is younger than **24 h**
+   (`TOKEN_TTL` in `src/client.rs`).
+2. On miss it calls `refresh_token()`; the new token replaces the cached one and
+   `areaDomain` (when present) replaces the base URL.
+3. Any token-bearing call that comes back `10002` triggers **one** refresh and a
+   single replay of the request, inside `post_form()`. A second `10002` is
+   returned to the caller.
+4. `EzvizClient::with_token(token, area_domain)` skips minting entirely — the
+   server-side broker pattern: the broker mints, the client consumes.
+
+Tokens are **per appKey per region**, not per device or per caller. Rotating
+them per consumer gains nothing and multiplies `10007`/`10029` rate-limit
+failures at fleet scale.
 
 ## Endpoints
 
-### Auth
-| Method | Path | Params | Returns |
-| --- | --- | --- | --- |
-| POST | `/api/lapp/token/get` | `appKey`, `appSecret` | `accessToken`, `expireTime` (ms), `areaDomain` |
+### Devices
 
-### Device
-| Method | Path | Params | Returns |
-| --- | --- | --- | --- |
-| POST | `/api/lapp/device/list` | `pageStart` (0-based), `pageSize` (≤50) | paged `DeviceInfo[]` |
-| POST | `/api/lapp/device/info` | `deviceSerial` | `DeviceDetail` |
-| POST | `/api/lapp/device/status` | `deviceSerial` | status (fields vary) |
-| POST | `/api/lapp/camera/list` | — | `CameraChannel[]` (all cameras) |
-| POST | `/api/lapp/device/camera/list` | `deviceSerial` | `CameraChannel[]` (channels) |
+| Method | Endpoint | Parameters | Returns |
+|---|---|---|---|
+| `list_devices(page_start, page_size)` | `POST /api/lapp/device/list` | `pageStart` (from 0), `pageSize` (≤ 50), access token | `ListResponse<DeviceInfo>` |
+| `device_info(serial)` | `POST /api/lapp/device/info` | `deviceSerial` | `DeviceDetail` |
+| `device_status(serial)` | `POST /api/lapp/device/status` | `deviceSerial` | `DeviceDetail` (status fields) |
+| `list_cameras()` | `POST /api/lapp/camera/list` | access token | `Vec<CameraChannel>` |
+| `device_cameras(serial)` | `POST /api/lapp/device/camera/list` | `deviceSerial` | `Vec<CameraChannel>` |
 
-### Live / Playback
-| Method | Path | Params | Returns |
-| --- | --- | --- | --- |
-| POST | `/api/lapp/live/address/get` | `deviceSerial`, `channelNo`, `protocol` (1 ezopen / 2 hls / 3 rtmp / 4 flv), `quality` (1 HD / 2 fluent), `type` (1 preview / 2 local / 3 cloud), `expireTime` (s, 30–720d), `code` (encryption key), `startTime`/`stopTime` (`yyyy-MM-dd HH:mm:ss`) | `LiveAddress { id, url, expireTime }` |
-| POST | `/api/lapp/live/address/disable` | `deviceSerial`, `channelNo`, `urlId` | ack |
+`DeviceInfo` carries `device_serial`, `device_name`, `status`, `device_type`,
+`is_encrypt`; `CameraChannel` adds `channel_no` and `video_level`.
+Every field that the platform may omit is `Option<…>` — a missing field is not
+a parse error.
+
+### Live and playback addresses
+
+| Method | Endpoint | Parameters |
+|---|---|---|
+| `live_address(serial, ch, protocol, quality, live_type, expire, code, start, stop)` | `POST /api/lapp/live/address/get` | see below |
+| `live_hls_address(serial, ch, quality)` | same | shortcut: `protocol=Hls`, `type=Preview` |
+| `local_playback_address(serial, ch, quality, start, stop)` | same | `type=LocalPlayback` + window |
+| `cloud_playback_address(serial, ch, quality, start, stop)` | same | `type=CloudPlayback` + window |
+| `disable_live_address(serial, ch, url_id)` | `POST /api/lapp/live/address/disable` | revokes one issued URL |
+
+Parameter rules:
+
+- `protocol` — `Ezopen=1`, `Hls=2`, `Rtmp=3`, `Flv=4`. **No RTSP value exists
+  in this API**; a LAN RTSP URL is constructed by the caller, not minted here.
+- `quality` — `Hd=1` (main bitrate) or `Fluent=2` (sub bitrate).
+- `type` — `Preview=1`, `LocalPlayback=2`, `CloudPlayback=3`.
+- `expireTime` — seconds; values `< 32` are interpreted by the platform as
+  "decide for me". Ignored for playback.
+- `code` — the device verify code, only for encrypted devices.
+- `startTime` / `stopTime` — `yyyy-MM-dd HH:mm:ss`, playback only.
+
+`LiveAddress { id, url, expire_time }`; keep `id` if you intend to revoke the
+URL later.
 
 ### PTZ
-| Method | Path | Params | Returns |
-| --- | --- | --- | --- |
-| POST | `/api/lapp/device/ptz/start` | `deviceSerial`, `channelNo`, `direction`, `speed` | ack |
-| POST | `/api/lapp/device/ptz/stop` | `deviceSerial`, `channelNo`, `direction` | ack |
-| POST | `/api/lapp/device/ptz/mirror` | `deviceSerial`, `channelNo`, `command` (0 up/down, 1 left/right, 2 center) | ack |
-| POST | `/api/lapp/device/preset/add` | `deviceSerial`, `channelNo` | `{ index }` |
-| POST | `/api/lapp/device/preset/move` | `deviceSerial`, `channelNo`, `index` | ack |
-| POST | `/api/lapp/device/preset/clear` | `deviceSerial`, `channelNo`, `index` | ack |
 
-**`direction`** (PTZ start/stop): `0 Up, 1 Down, 2 Left, 3 Right, 4 Upper-left,
-5 Lower-left, 6 Upper-right, 7 Lower-right, 8 Zoom in, 9 Zoom out,
-10 Focus near, 11 Focus far`.
+| Method | Endpoint | Parameters |
+|---|---|---|
+| `ptz_start(serial, ch, direction, speed)` | `POST /api/lapp/device/ptz/start` | `direction` 0–11, `speed` 0/1/2 |
+| `ptz_stop(serial, ch, direction)` | `POST /api/lapp/device/ptz/stop` | same direction as the start |
+| `ptz_mirror(serial, ch, command)` | `POST /api/lapp/device/ptz/mirror` | `MirrorCommand` |
+| `preset_add(serial, ch)` | `POST /api/lapp/device/preset/add` | returns the assigned index |
+| `preset_move(serial, ch, index)` | `POST /api/lapp/device/preset/move` | recall |
+| `preset_clear(serial, ch, index)` | `POST /api/lapp/device/preset/clear` | delete |
 
-**`speed`**: `0 Slow, 1 Medium, 2 Fast`.
+`PtzDirection`: `Up=0 Down=1 Left=2 Right=3 UpperLeft=4 LowerLeft=5
+UpperRight=6 LowerRight=7 ZoomIn=8 ZoomOut=9 FocusNear=10 FocusFar=11`.
+`PtzSpeed`: `Slow=0 Medium=1 Fast=2`.
+
+A movement is continuous until an explicit `ptz_stop` with the **same**
+direction. There is no auto-stop timeout in the API or in this crate.
 
 ### Alarms
-| Method | Path | Params | Returns |
-| --- | --- | --- | --- |
-| POST | `/api/lapp/alarm/list` | `startTime`/`endTime` (ms, ≤7 days), `alarmType` (-1 all), `status` (0 unread / 1 read / 2 all), `pageStart`, `pageSize` | paged `AlarmItem[]` |
+
+`list_alarms(start_ms, end_ms, alarm_type, status, page_start, page_size)` →
+`POST /api/lapp/alarm/list`.
+
+- `startTime` / `endTime` are **Unix milliseconds**, and the window is capped at
+  **7 days**.
+- `AlarmType` — `All=-1`, `PirEvent=10000`, `MotionDetection=10002`,
+  `VideoTampering=10011`, `VideoLoss=10012`, `LineCrossing=10013`,
+  `Intrusion=10014`, `FaceDetection=10015`, `DoorBellRing=10016`,
+  `SceneChange=10020`, `Defocus=10021`, `AudioException=10022`,
+  `UnattendedBaggage=10023`, `ObjectRemoval=10024`, `IllegalParking=10025`,
+  `PeopleGathering=10026`, `Loitering=10027`, `FastMoving=10028`,
+  `RegionEntrance=10029`, `RegionExiting=10030`, `LowBattery=10032`,
+  `IoAlarm=10100`.
+- `AlarmStatus` — `Unread=0`, `Read=1`, `All=2`.
+- Paginated: loop on `page` until `items` is short. A polling consumer must
+  persist a cursor, not re-query the whole window.
 
 ### Capture
-| Method | Path | Params | Returns |
-| --- | --- | --- | --- |
-| POST | `/api/lapp/device/capture` | `deviceSerial`, `channelNo` | ack |
 
-## Error codes (common)
+`capture(serial, ch)` → `POST /api/lapp/device/capture`. Requests a snapshot and
+returns `Result<()>`. **No URL comes back.** The picture is delivered
+asynchronously and is fetched from the platform's picture URL (the same one
+alarms carry).
 
-| Code | Meaning |
-| --- | --- |
-| 200 | Success |
-| 10001 | Parameter empty / wrong format |
-| 10002 | accessToken expired / invalid → client auto-refreshes once |
-| 10005 | appKey frozen |
-| 10007 / 10029 | Call / frequency limit |
-| 20002 | Device does not exist |
-| 20007 | Device offline |
-| 20014 | Illegal deviceSerial |
-| 20018 | User does not own the device |
-| 20032 | Channel does not exist |
-| 60000 / 60001 | Device does not support PTZ / no PTZ permission (encryption on) |
-| 60002–60005 | PTZ reached a limit |
-| 60006 | PTZ operation failed |
-| 60007 / 60008 | No more presets (C6 max 12) |
-| 60011 | Preset does not exist |
-| 49999 | Platform data exception |
+## Errors
 
-## PCOpenSDK (native, Windows) — `pc-sdk` feature
+`EzvizError`:
 
-The SDK (`OpenNetStream.dll`, from `EZPCOpenSDK_v5.1.18`) is loaded at runtime
-via `libloading`; the crate never links or redistributes it. Key functions bound
-in `src/pc_sdk.rs`:
+| Variant | Meaning |
+|---|---|
+| `Api { code, msg }` | platform returned a non-`200` `code`; the platform's own text is preserved |
+| `Http(…)` | transport failure (DNS, TLS, connect, timeout) |
+| `Json(…)` | request/response body did not match the expected shape |
+| `Io(…)` | local I/O (SDK loading, file paths) |
+| `Sdk(String)` | `pc-sdk` only: the native library reported failure |
 
-| SDK function | Purpose |
-| --- | --- |
-| `OpenSDK_Init` / `OpenSDK_InitLib` | init with appKey (and optional auth/platform hosts) |
-| `OpenSDK_SetAccessToken` | set the access token (v5 flow — no password login) |
-| `OpenSDK_AllocSessionEx` / `OpenSDK_FreeSession` | session lifecycle |
-| `OpenSDK_StartRealPlayEx` / `OpenSDK_StopRealPlayEx` | P2P preview into an HWND (or pure stream) |
-| `OpenSDK_PTZCtrlEx` | PTZ command (async; result via message callback) |
-| `OpenSDK_SetMessageCallback` | async events: `INS_PTZCTRL_SUCCESS`=46, `INS_PTZCTRL_FAILED`=47, `INS_PTZ_EXCEPTION`=19 |
+Platform codes the crate acts on:
 
-SDK PTZ command enum (`PTZCommand`): `UP=0, DOWN=1, LEFT=2, RIGHT=3, UPLEFT=4,
-DOWNLEFT=5, UPRIGHT=6, DOWNRIGHT=7, ZOOMIN=8, ZOOMOUT=9, FOCUSNEAR=10,
-FOCUSFAR=11, IRISSTARTUP=12, IRISSTOPDOWN=13, LIGHT=14, WIPER=15, AUTO=16`.
-`PTZAction`: `START=0, STOP=1`.
+| Code | Behaviour |
+|---|---|
+| `200` | success |
+| `10002` | one refresh + one replay inside `post_form()`; a repeat surfaces to the caller |
 
-> The HTTP `direction` codes and the SDK `PTZCommand` codes happen to match for
-> 0–11, but keep the two types separate — the HTTP API is the portable path and
-> the SDK is the low-latency desktop path.
+All other codes are passed through untouched. Vendor documentation lists
+`10005`, `10007`, `10029`, `20002`, `20007`, `20014`, `20018` and the `60000`
+range for rate limits, missing/offline devices and PTZ failures; the crate does
+not reinterpret them, because the numeric ranges differ between regions and
+firmware generations. Treat any non-`200` as an API error and branch on the
+string if you must.
 
-## Notes / caveats
+**The crate never panics in library code.** Lock poisoning is recovered, a
+failed client build falls back to a default client, and every fallible path
+returns `EzvizError`.
 
-- `expireTime` in `LiveAddress` is a human-readable string on the intl host.
-- `device/status` and `device/info` responses vary by device family; unknown
-  fields are preserved via `#[serde(flatten)] extra`.
-- The `capture` endpoint is widely used by the official SDKs but is not in the
-  public HTTP doc pages; treat it as best-effort.
-- The proprietary SDK is **not** redistributable — keep `EZPCOpenSDK_v5.1.18/`
-  out of the published crate (it is gitignored here).
+## `pc-sdk` surface (Windows)
+
+`PcSdk::load()` searches `$EZVIZ_SDK_DIR`, then the working directory, then
+`PATH`, for `OpenNetStream.dll`. All calls are `&self` and return
+`Result<…>` with `EzvizError::Sdk`.
+
+| Method | Purpose |
+|---|---|
+| `init(app_id)` / `init_lib(auth_addr, platform, app_id)` | library init |
+| `fini_lib()` | teardown |
+| `set_access_token(token)` | hand the HTTP token to the SDK |
+| `set_app_id(app_id)`, `set_client_ver(v)` | identity |
+| `set_config_info(key, value)` | numeric config (`CONFIG_*` constants) |
+| `set_message_callback(Option<MessageHandler>)` | async messages |
+| `alloc_session_ex(private, hwnd)` / `free_session(session)` | P2P session lifecycle |
+| `set_session_config(session, key, value)` | per-session config |
+| `start_real_play_ex(session, hwnd, serial, channel, safe_key)` | render into a window handle |
+| `stop_real_play_ex(session)` | stop rendering |
+| `ptz_ctrl_ex(session, serial, channel, command, action, speed)` | PTZ straight over P2P |
+
+Return codes: `PTZCTRL_SUCCESS = 46`, `PTZCTRL_FAILED = 47`,
+`PTZ_EXCEPTION = 19`. The window-handle preview is incompatible with a GPU
+compositor that expects textures — it is an admin/editor surface, not a player
+surface.

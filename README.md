@@ -5,44 +5,23 @@
 [![MSRV 1.75](https://img.shields.io/badge/MSRV-1.75-blue.svg)](Cargo.toml)
 [![docs.rs](https://img.shields.io/docsrs/ezviz-openapi)](https://docs.rs/ezviz-openapi)
 
-Async Rust client for the **EZVIZ Open Platform** HTTP API
-(`open.ys7.com` / `isgpopen.ezvizlife.com`) — the cloud backend behind EZVIZ /
-Hikvision smart cameras. Built for the SignageMaster CCTV panel: list devices,
-pull HLS/RTMP/FLV live and playback URLs, and drive PTZ cameras (pan/tilt/zoom,
-mirror, presets).
+An async Rust client for the **EZVIZ Open Platform** — the HTTP control plane
+behind EZVIZ and Hikvision consumer cameras. It mints access tokens, lists
+devices and channels, issues and revokes live/playback URLs, and drives PTZ,
+presets and alarms. An optional `pc-sdk` feature binds the proprietary Windows
+PCOpenSDK for low-latency preview.
 
-Optional `pc-sdk` feature adds **Windows FFI** to the proprietary PCOpenSDK
-(`OpenNetStream.dll`) for direct P2P preview and PTZ control from a desktop app.
+**What this crate is not.** It does not decode or render video, and it is not a
+player. It returns URLs and commands; playback is the caller's job. The
+`ezopen` protocol value can be requested but only the vendor SDK can play it —
+use HLS (`live_hls_address`) for anything portable.
 
-## Feature flags
-
-| Feature | Default | What it enables |
-|---|---|---|
-| `rustls-tls` | yes | TLS for the HTTP client via `rustls` (pulls `reqwest/rustls`) |
-| `pc-sdk` | no | Windows-only `libloading` FFI to the proprietary PCOpenSDK |
-
-`pc-sdk` deliberately does not pull in `libloading` unless requested, so
-Linux/macOS builds and the published crate stay dependency-light.
-
-## Features
-
-- **Auth** — `POST /api/lapp/token/get` with in-memory caching, region
-  (`areaDomain`) switching, and one-shot auto-refresh on `10002`.
-- **Devices** — list / info / status / camera & channel enumeration.
-- **Live & playback** — play addresses (ezopen / HLS / RTMP / FLV), local and
-  cloud playback windows, address invalidation.
-- **PTZ** — start/stop pan-tilt-zoom (8 directions + zoom + focus), mirror
-  flip, presets (add / move / clear).
-- **Alarms** — alarm list with typed filters.
-- **Capture** — snapshot request.
-- **PCOpenSDK FFI** (`pc-sdk`, Windows) — runtime-loaded `OpenNetStream.dll`:
-  init, access token, sessions, real-play preview, PTZ control.
-
-## Usage
+## Quick start
 
 ```toml
 [dependencies]
 ezviz-openapi = "0.1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 ```rust,no_run
@@ -50,39 +29,58 @@ use ezviz_openapi::{EzvizClient, ptz::{PtzDirection, PtzSpeed}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = EzvizClient::new("APP_KEY", "APP_SECRET");
+    let client = EzvizClient::new("APP_KEY", "APP_SECRET"); // token fetched on first call
 
-    for d in client.list_devices(0, 50).await?.items {
-        println!("{} {}", d.device_serial, d.device_name);
+    for device in client.list_devices(0, 50).await?.items {
+        println!("{} {} online={}", device.device_serial, device.device_name, device.status);
     }
 
-    // HLS live URL for a signage player:
-    let live = client.live_hls_address("DEVICE_SERIAL", 1,
-        ezviz_openapi::live::VideoQuality::Hd).await?;
-    println!("{}", live.url);
+    let live = client
+        .live_hls_address("DEVICE_SERIAL", 1, ezviz_openapi::live::VideoQuality::Hd)
+        .await?;
+    println!("play: {} (expires {:?})", live.url, live.expire_time);
 
-    // PTZ:
     client.ptz_start("DEVICE_SERIAL", 1, PtzDirection::Up, PtzSpeed::Medium).await?;
     client.ptz_stop("DEVICE_SERIAL", 1, PtzDirection::Up).await?;
     Ok(())
 }
 ```
 
-See `examples/` for runnable programs (`list_devices`, `ptz_control`,
-`live_preview`) driven by `EZVIZ_APP_KEY` / `EZVIZ_APP_SECRET` /
-`EZVIZ_DEVICE_SERIAL` env vars.
+Credentials belong on a server. The crate never logs, persists or transmits
+them anywhere except to the EZVIZ host that issued them.
 
-## PCOpenSDK (Windows, optional)
+## Feature flags
 
-```toml
-[dependencies]
-ezviz-openapi = { version = "0.1", features = ["pc-sdk"] }
-```
+| Feature | Default | Enables | Cost |
+|---|---|---|---|
+| `rustls-tls` | yes | TLS through `reqwest/rustls` | pure-Rust TLS stack |
+| `pc-sdk` | no | Windows FFI to PCOpenSDK via `libloading` | `libloading` dep; Windows only |
+
+With `pc-sdk` off nothing Windows-specific is compiled, so Linux/macOS builds
+and the published crate stay dependency-light.
+
+## What it covers
+
+| Module | Platform surface | Main methods |
+|---|---|---|
+| `token` | `POST /api/lapp/token/get` | cached automatically; `access_token()`, `refresh_token()` |
+| `device` | `/device/list`, `/device/info`, `/device/status`, `/camera/list`, `/device/camera/list` | `list_devices()`, `device_info()`, `device_status()`, `list_cameras()`, `device_cameras()` |
+| `live` | `POST /api/lapp/live/address/get`, `.../disable` | `live_address()`, `live_hls_address()`, `disable_live_address()` |
+| `playback` | same endpoint with `type=2`/`3` | `local_playback_address()`, `cloud_playback_address()` |
+| `ptz` | `/device/ptz/start`, `/stop`, `/mirror`, `/preset/{add,move,clear}` | `ptz_start()`, `ptz_stop()`, `ptz_mirror()`, `preset_add()`, `preset_move()`, `preset_clear()` |
+| `alarm` | `POST /api/lapp/alarm/list` | `list_alarms()` |
+| `capture` | `POST /api/lapp/device/capture` | `capture()` |
+| `pc_sdk` | PCOpenSDK (`OpenNetStream.dll`) | `PcSdk::load()`, `init()`, `start_real_play_ex()`, `ptz_ctrl_ex()`, … |
+
+Full endpoint table, parameter rules and error codes:
+[`docs/01-api-reference.md`](docs/01-api-reference.md).
+
+## Windows FFI (`pc-sdk`)
 
 ```rust,no_run
-use ezviz_openapi::pc_sdk::{PcSdk, PtzCommand, PtzAction};
+use ezviz_openapi::pc_sdk::{PcSdk, PtzAction, PtzCommand};
 
-let sdk = PcSdk::load()?;          // reads $EZVIZ_SDK_DIR, cwd, PATH
+let sdk = PcSdk::load()?;               // $EZVIZ_SDK_DIR, cwd, then PATH
 sdk.init("APP_KEY")?;
 sdk.set_access_token("at.xxxx")?;
 let session = sdk.alloc_session_ex(None, std::ptr::null_mut())?;
@@ -92,57 +90,73 @@ sdk.free_session(&session)?;
 sdk.fini_lib()?;
 ```
 
-The SDK DLL is loaded at runtime and is **not** redistributed by this crate —
-place `OpenNetStream.dll` (and its dependency DLLs) on the target machine and
-point `EZVIZ_SDK_DIR` at the extracted `EZPCOpenSDK_v5.1.18` folder.
+The DLL is loaded at runtime from `EZVIZ_SDK_DIR` and is **not** redistributed.
+`EZPCOpenSDK_v5.1.18/` is gitignored, absent from the published crate (verified:
+`cargo package --list` lists zero SDK files), and no build step reads it. Two
+pieces are kept in the working tree for provenance and manual testing: `inc/`
+(the headers the bindings were transcribed from) and `lib/win64/` (the runtime
+DLLs).
 
-`EZPCOpenSDK_v5.1.18/` is gitignored, so it is not in the repository, the git
-history, or the published crate, and no build step reads it. Only two parts are
-kept in the working tree: `inc/` (the headers the bindings in `src/pc_sdk.rs`
-were derived from — keep it, it is the provenance for those signatures) and
-`lib/win64/` (the DLLs needed to actually run P2P preview on Windows). The
-`demo/`, `doc/` and `lib/win32/` trees were removed as unused.
+## Examples
+
+| Example | Needs | Shows |
+|---|---|---|
+| `list_devices` | `EZVIZ_APP_KEY`, `EZVIZ_APP_SECRET` | token minting + device listing |
+| `live_preview` | + `EZVIZ_DEVICE_SERIAL` | HLS live URL |
+| `ptz_control` | + `EZVIZ_DEVICE_SERIAL` | pan up/stop via PTZ |
+
+```bash
+cargo run --example list_devices
+```
 
 ## Development
 
 ```bash
-rustup component add rustfmt clippy     # CI enforces both
+rustup component add rustfmt clippy   # CI enforces both
 
 cargo fmt --all --check
 cargo clippy --all-targets -- -D warnings
-cargo test                              # wiremock, no network and no credentials
+cargo test                            # wiremock; no network, no credentials
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
-
-cargo run --example list_devices        # needs EZVIZ_APP_KEY / EZVIZ_APP_SECRET
-
-bash scripts/release.sh --dry-run       # the full release preflight, no upload
 ```
 
-`master` is protected: the five CI checks (rustfmt, clippy, rustdoc, tests on
-Linux and Windows) must pass, and force-pushes are rejected.
+`cargo test --features pc-sdk` on Windows covers the FFI module; elsewhere the
+module compiles to an `Unsupported` error and its tests are skipped.
+
+`master` is protected: all five CI checks (rustfmt, clippy, rustdoc, tests on
+Linux and Windows) must pass and force-pushes are rejected.
+
+## Releasing
+
+```bash
+bash scripts/release.sh --dry-run        # gates + package + verify, no upload
+bash scripts/release.sh --version 0.2.0  # bump and publish
+```
+
+`release.yml` calls the same script on a `v*.*.*` tag, so the tag and the script
+cannot disagree about the gates.
+
+## Known limitations
+
+- **Verify-code error codes are unconfirmed.** `400035`/`400036` are
+  mobile-SDK codes; the HTTP-path equivalents and whether encrypted HLS needs
+  the `code` parameter must be confirmed against real hardware.
+- **`capture()` is fire-and-forget.** It requests a snapshot; the image is
+  fetched later from the platform's picture URL.
+- **Alarms are capped at 7 days** and paginated; a long outage needs a cursor
+  and paging, not a single query.
+- **No WebSocket/MQTT push.** Alarm delivery is polling-only here; a broker
+  layer is the consumer's responsibility (see
+  [`docs/02-cctv-integration.md`](docs/02-cctv-integration.md)).
+
+## Project links
+
+- [CHANGELOG.md](CHANGELOG.md) — release history, limitations
+- [CONTRIBUTING.md](CONTRIBUTING.md) — gates, design rules, commit convention
+- [SECURITY.md](SECURITY.md) — private disclosure, in-scope surfaces
+- [docs/00-index.md](docs/00-index.md) — documentation map
 
 ## License
 
 MIT — see [LICENSE](LICENSE). The EZVIZ PCOpenSDK is proprietary and licensed
-separately by EZVIZ; this crate only loads it at runtime and does not include
-it.
-
-## Project links
-
-- [CHANGELOG.md](CHANGELOG.md) — release history and known limitations
-- [CONTRIBUTING.md](CONTRIBUTING.md) — gates, design rules, commit convention
-- [SECURITY.md](SECURITY.md) — private disclosure route and in-scope surfaces
-
-## Documentation
-
-Start at [`docs/00-index.md`](docs/00-index.md).
-
-| File | Purpose |
-|---|---|
-| [`docs/00-rust-package-standard.md`](docs/00-rust-package-standard.md) | The reusable Rust package engineering standard this crate follows. Identical copy in `tv-rs`. |
-| [`docs/01-api-reference.md`](docs/01-api-reference.md) | Full endpoint table, parameters, error codes, and a flow diagram of the API surface. The authoritative reference. |
-| [`docs/01-cctv-integration.md`](docs/01-cctv-integration.md) | How this crate is consumed by the signage platform: live widget, alarm interrupt, snapshot, token broker, phasing. |
-| [`docs/02-external-refs.md`](docs/02-external-refs.md) | REA reverse-engineering tooling and the decision to build on this crate rather than on REA. |
-
-Naming and layout rules are shared with the `tv-rs` workspace — see
-[`docs/00-rust-package-standard.md`](docs/00-rust-package-standard.md).
+separately by EZVIZ; this crate only loads it at runtime.
