@@ -1,0 +1,13 @@
+# Normalise line endings in the repository: LF in the index for text files,
+# regardless of the contributor's platform. The project is developed on Windows
+# and gated on Linux CI, and mixed endings break rustfmt --check and diff review.
+* text=auto eol=lf
+
+# Native binaries from the proprietary PCOpenSDK drop (gitignored, but pinned
+# here so an accidental add is treated as binary rather than mangled).
+*.dll binary
+*.lib binary
+*.pdb binary
+
+# Cargo lockfiles must not be text-merged.
+Cargo.lock merge=binary
