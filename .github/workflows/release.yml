@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (package and verify, but do not upload)"
+        type: boolean
+        default: true
 
 jobs:
   publish:
@@ -12,12 +18,22 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
-      # Ensure Cargo.toml is valid
-      - run: cargo check
+      # LICENSE and README are both declared in Cargo.toml; a missing file is
+      # rejected by cargo publish, so fail early with a clear message.
+      - name: Verify release files exist
+        run: |
+          test -f LICENSE || (echo "LICENSE is missing" && exit 1)
+          test -f README.md || (echo "README.md is missing" && exit 1)
 
-      # Publish the crate
+      # Same preflight the local script runs, plus the package dry run.
+      - name: Dry run the release
+        run: bash scripts/release.sh --dry-run
+
       - name: Publish
-        run: cargo publish --token ${CRATES_IO_TOKEN}
+        if: github.event_name == 'push' || inputs.dry_run == false
+        run: bash scripts/release.sh --yes --token "$CRATES_IO_TOKEN"
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}

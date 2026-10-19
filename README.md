@@ -114,8 +114,8 @@ cargo test                              # wiremock, no network and no credential
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
 
 cargo run --example list_devices        # needs EZVIZ_APP_KEY / EZVIZ_APP_SECRET
-cargo package --list
-cargo publish --dry-run
+
+bash scripts/release.sh --dry-run       # the full release preflight, no upload
 ```
 
 `master` is protected: the five CI checks (rustfmt, clippy, rustdoc, tests on

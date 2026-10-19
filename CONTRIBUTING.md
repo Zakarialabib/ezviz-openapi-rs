@@ -48,6 +48,21 @@ docs: reconcile the CCTV integration spec against src
 
 Group related files; never mix formatting churn with behaviour.
 
+## Releasing
+
+`scripts/release.sh` is the only publish path — it runs every gate, refuses a
+dirty tree for a real publish, bumps the version in one place and dry-runs
+before uploading:
+
+```bash
+bash scripts/release.sh --dry-run              # verify, upload nothing
+bash scripts/release.sh --version 0.2.0        # bump and publish
+```
+
+`.github/workflows/release.yml` calls the same script on a `v*.*.*` tag, so a
+tag and the script can never disagree about what a release contains. crates.io
+yanks rather than deletes: a mistaken version burns its number.
+
 ## Docs
 
 Start at [`docs/00-index.md`](docs/00-index.md). `docs/01-cctv-integration.md`
