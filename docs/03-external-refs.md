@@ -1,23 +1,23 @@
 # External references
 
 Where the facts in [`01-api-reference.md`](01-api-reference.md) come from, what
-the optional SDK provides, and when reverse engineering is the right tool
-instead of reading documentation.
+the optional native SDK provides, and what to read next.
 
-## 1. EZVIZ Open Platform (primary source)
+## Platform documentation
 
 | Reference | What it gives |
 |---|---|
 | `https://open.ys7.com/help/en/*` | endpoint catalogue, parameters, response envelope, error codes for the `/api/lapp/**` surface |
-| `https://isgpopen.ezvizlife.com` | the international API host this crate defaults to (`DEFAULT_BASE_URL`) |
+| `https://isgpopen.ezvizlife.com` | the international host this crate defaults to (`DEFAULT_BASE_URL`) |
 | `areaDomain` in the token response | the regional host a token is actually valid against |
 
-Everything the crate implements comes from these endpoints. Where the vendor
+Everything implemented here comes from those endpoints. Where the vendor
 documentation is ambiguous — numeric error ranges differing by region, whether
-encrypted HLS needs the `code` parameter — this crate passes the platform's
-`code`/`msg` through unchanged rather than inventing its own mapping.
+encrypted HLS needs the `code` parameter — the crate passes the platform's
+`code`/`msg` through unchanged rather than inventing its own mapping, and the
+open questions are recorded in the README's limitations.
 
-## 2. PCOpenSDK (optional native path)
+## The native SDK (optional)
 
 The vendor ships a Windows C SDK. Its headers are the origin of every FFI
 signature in `src/pc_sdk.rs`:
@@ -32,41 +32,21 @@ signature in `src/pc_sdk.rs`:
 These files are **not** in the repository and not in the published crate
 (`EZPCOpenSDK_v5.1.18/` is gitignored; `cargo package --list` contains zero SDK
 files). They stay in the working tree so the bindings remain auditable against
-their source, and so a developer can run `--features pc-sdk` locally.
+their source and so `--features pc-sdk` can be exercised locally.
 
-## 3. Reverse engineering (fallback, not a dependency)
+## Prior art and neighbours
 
-REA ("Reverse Engineer Anything", `morluto/rea`, npm `rea-agents`, MIT) is a
-local MCP server + CLI that inspects binaries, apps and runtime behaviour and
-returns code plus evidence. In this environment it is wired as the `rea` MCP
-server; roughly 200 tools are exposed, spanning:
-
-- **native** — pseudocode/assembly/strings/call graphs (Hopper, Ghidra, IDA);
-- **JavaScript/Electron** — modules, source maps, IPC (static, no engine);
-- **.NET / Android / Flutter / firmware / WASM / EVM** — static analysis;
-- **runtime** — browser scenarios, ADB, process capture, pcap, signal capture.
-
-Engines are opt-in through env vars (`GHIDRA_INSTALL_DIR`,
-`HOPPER_LAUNCHER_PATH`, `REA_IDA_MCP_CONFIG`, `REA_JADX_MCP_JAR`); static JS and
-.NET analysis need none.
-
-### Why the crate is not built on REA
-
-The platform API is documented and the SDK ships its headers, so the crate was
-built from primary sources. Reverse engineering is reserved for the case that
-documentation cannot settle: a protocol that behaves differently from its spec,
-or an undocumented payload the official apps send.
-
-| Need | Tool |
+| Project | Why it is worth reading |
 |---|---|
-| Control a camera (PTZ, live URL, presets, alarms) | this crate |
-| Low-latency Windows preview/PTZ | this crate, `pc-sdk` feature |
-| Confirm what a vendor app actually sends | REA (static APK/native analysis) |
-| Verify an undocumented SDK behaviour | REA against `OpenNetStream.dll` |
+| `ezviz-openapi` (this crate) | the HTTP path, typed, with region handling |
+| EZVIZ's own mobile SDKs | the reference for behaviour the HTTP API does not document |
+| `tv-rs` | the same package standard applied to TV control; useful when a project needs both cameras and screens |
 
-## 4. Related crate
+## Reading the code
 
-The signage platform's TV-control workspace (`tv-rs`) is a sibling project that
-follows the same package standard; it consumes this crate for its CCTV widget.
-Its `docs/00-rust-package-standard.md` is byte-identical to
-[`00-rust-package-standard.md`](00-rust-package-standard.md) here.
+| If you want to understand | Read |
+|---|---|
+| how a request is signed and replayed | `src/client.rs` (`post_form`, `call`, `call_ack`) |
+| what the envelope can look like | `src/types.rs` (`ApiCode`, `ApiResponse`, `ListResponse`) |
+| how regions are followed | `src/token.rs` + `set_base_url` in `src/client.rs` |
+| why an error is opaque | `src/error.rs` (`EzvizError::Api` preserves `code`/`msg`) |
