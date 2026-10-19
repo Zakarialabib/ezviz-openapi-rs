@@ -109,6 +109,32 @@ DLLs).
 cargo run --example list_devices
 ```
 
+## Integrate it
+
+Nine copy-paste prompts for embedding this crate — live HLS widget, token
+broker, PTZ panel, alarm poller, snapshot tile, NVR grid, playback scrubber,
+Windows P2P preview, and credential-free tests — live in
+[`docs/04-integration-prompts.md`](docs/04-integration-prompts.md). Each names
+the exact APIs, the pitfalls that bite (7-day alarm window, fire-and-forget
+capture, no RTSP in the API), and what "done" means.
+
+The shortest useful one:
+
+```text
+Add a live EZVIZ camera view using ezviz-openapi. Resolve the URL with
+client.live_hls_address(device_serial, channel_no, VideoQuality::Fluent) for
+players, cache it until expire_time, and re-resolve instead of treating an
+expired URL as an offline camera. Release torn-down streams with
+disable_live_address(serial, channel, &id). Credentials stay server-side: the
+frontend receives a URL, never an appKey. Done when the widget plays from a cold
+start, survives expiry without a black flash, and a closed widget releases its
+address.
+```
+
+Whichever scenario you build, the platform rules are the same: tokens are per
+appKey **per region** (not per player), `areaDomain` overrides your configured
+host, and the crate returns URLs — it never decodes video.
+
 ## Development
 
 ```bash

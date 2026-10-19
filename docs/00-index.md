@@ -10,6 +10,7 @@ deliberately small. Read in this order:
 | 3 | [`glossary.md`](glossary.md) | what appKey / areaDomain / deviceSerial / channelNo / ezopen actually mean |
 | 4 | [`02-cctv-integration.md`](02-cctv-integration.md) | how a signage platform consumes this crate: live widget, alarm interrupt, broker, phasing |
 | 5 | [`03-external-refs.md`](03-external-refs.md) | official platform docs, the PCOpenSDK, and the reverse-engineering option |
+| 6 | [`04-integration-prompts.md`](04-integration-prompts.md) | ready-to-paste prompts for each integration scenario (live widget, broker, PTZ, alarms, snapshots, NVR grid, playback, Windows preview, tests) |
 | — | [`00-rust-package-standard.md`](00-rust-package-standard.md) | the engineering standard this crate follows (shared verbatim with `tv-rs`) |
 
 ## Conventions
