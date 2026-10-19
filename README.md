@@ -81,6 +81,13 @@ The SDK DLL is loaded at runtime and is **not** redistributed by this crate —
 place `OpenNetStream.dll` (and its dependency DLLs) on the target machine and
 point `EZVIZ_SDK_DIR` at the extracted `EZPCOpenSDK_v5.1.18` folder.
 
+`EZPCOpenSDK_v5.1.18/` is gitignored, so it is not in the repository, the git
+history, or the published crate, and no build step reads it. Only two parts are
+kept in the working tree: `inc/` (the headers the bindings in `src/pc_sdk.rs`
+were derived from — keep it, it is the provenance for those signatures) and
+`lib/win64/` (the DLLs needed to actually run P2P preview on Windows). The
+`demo/`, `doc/` and `lib/win32/` trees were removed as unused.
+
 ## Development
 
 ```bash
@@ -98,15 +105,14 @@ crate only loads it at runtime and does not include it.
 
 ## Documentation
 
-Start at [`docs/README.md`](docs/README.md).
+Start at [`docs/00-index.md`](docs/00-index.md).
 
 | File | Purpose |
 |---|---|
 | [`docs/00-rust-package-standard.md`](docs/00-rust-package-standard.md) | The reusable Rust package engineering standard this crate follows. Identical copy in `tv-rs`. |
 | [`docs/01-api-reference.md`](docs/01-api-reference.md) | Full endpoint table, parameters, error codes, and a flow diagram of the API surface. The authoritative reference. |
-| [`docs/01-spec-011-cctv-integration-v2.md`](docs/01-spec-011-cctv-integration-v2.md) | How CCTV plugs into the signage platform: live widget, alarm interrupt, snapshot. |
-| [`docs/01-spec-011-cctv-integration-v1.md`](docs/01-spec-011-cctv-integration-v1.md) | Superseded first revision, kept for history. |
+| [`docs/01-cctv-integration.md`](docs/01-cctv-integration.md) | How this crate is consumed by the signage platform: live widget, alarm interrupt, snapshot, token broker, phasing. |
 | [`docs/02-external-refs.md`](docs/02-external-refs.md) | REA reverse-engineering tooling and the decision to build on this crate rather than on REA. |
 
 Naming and layout rules are shared with the `tv-rs` workspace — see
-`tv-rs/docs/00-naming-conventions.md`.
+[`docs/00-rust-package-standard.md`](docs/00-rust-package-standard.md).
