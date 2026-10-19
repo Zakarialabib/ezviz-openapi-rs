@@ -1,5 +1,10 @@
 # ezviz-openapi
 
+[![CI](https://github.com/Zakarialabib/ezviz-openapi-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/Zakarialabib/ezviz-openapi-rs/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![MSRV 1.75](https://img.shields.io/badge/MSRV-1.75-blue.svg)](Cargo.toml)
+[![docs.rs](https://img.shields.io/docsrs/ezviz-openapi)](https://docs.rs/ezviz-openapi)
+
 Async Rust client for the **EZVIZ Open Platform** HTTP API
 (`open.ys7.com` / `isgpopen.ezvizlife.com`) — the cloud backend behind EZVIZ /
 Hikvision smart cameras. Built for the SignageMaster CCTV panel: list devices,
@@ -8,6 +13,16 @@ mirror, presets).
 
 Optional `pc-sdk` feature adds **Windows FFI** to the proprietary PCOpenSDK
 (`OpenNetStream.dll`) for direct P2P preview and PTZ control from a desktop app.
+
+## Feature flags
+
+| Feature | Default | What it enables |
+|---|---|---|
+| `rustls-tls` | yes | TLS for the HTTP client via `rustls` (pulls `reqwest/rustls`) |
+| `pc-sdk` | no | Windows-only `libloading` FFI to the proprietary PCOpenSDK |
+
+`pc-sdk` deliberately does not pull in `libloading` unless requested, so
+Linux/macOS builds and the published crate stay dependency-light.
 
 ## Features
 
@@ -91,17 +106,32 @@ were derived from — keep it, it is the provenance for those signatures) and
 ## Development
 
 ```bash
-cargo build
-cargo test          # runs against a local wiremock, no network/credentials
-cargo run --example list_devices   # needs EZVIZ_APP_KEY / EZVIZ_APP_SECRET
+rustup component add rustfmt clippy     # CI enforces both
+
+cargo fmt --all --check
+cargo clippy --all-targets -- -D warnings
+cargo test                              # wiremock, no network and no credentials
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
+
+cargo run --example list_devices        # needs EZVIZ_APP_KEY / EZVIZ_APP_SECRET
 cargo package --list
 cargo publish --dry-run
 ```
 
+`master` is protected: the five CI checks (rustfmt, clippy, rustdoc, tests on
+Linux and Windows) must pass, and force-pushes are rejected.
+
 ## License
 
-MIT. The EZVIZ PCOpenSDK is proprietary and licensed separately by EZVIZ; this
-crate only loads it at runtime and does not include it.
+MIT — see [LICENSE](LICENSE). The EZVIZ PCOpenSDK is proprietary and licensed
+separately by EZVIZ; this crate only loads it at runtime and does not include
+it.
+
+## Project links
+
+- [CHANGELOG.md](CHANGELOG.md) — release history and known limitations
+- [CONTRIBUTING.md](CONTRIBUTING.md) — gates, design rules, commit convention
+- [SECURITY.md](SECURITY.md) — private disclosure route and in-scope surfaces
 
 ## Documentation
 
