@@ -208,14 +208,10 @@ impl PcSdk {
     /// `OpenSDK_InitLib(authAddr, platform, appId)` — init with explicit
     /// auth/platform addresses (defaults: `https://openauth.ys7.com`,
     /// `https://open.ys7.com`).
-    pub fn init_lib(
-        &self,
-        auth_addr: &str,
-        platform: &str,
-        app_id: &str,
-    ) -> Result<()> {
-        let f: Symbol<unsafe extern "system" fn(*const c_char, *const c_char, *const c_char) -> OpenSdkResult> =
-            self.sym("OpenSDK_InitLib")?;
+    pub fn init_lib(&self, auth_addr: &str, platform: &str, app_id: &str) -> Result<()> {
+        let f: Symbol<
+            unsafe extern "system" fn(*const c_char, *const c_char, *const c_char) -> OpenSdkResult,
+        > = self.sym("OpenSDK_InitLib")?;
         let a = Self::cstr(auth_addr)?;
         let p = Self::cstr(platform)?;
         let id = Self::cstr(app_id)?;
@@ -240,7 +236,8 @@ impl PcSdk {
 
     /// `OpenSDK_FiniLib()`.
     pub fn fini_lib(&self) -> Result<()> {
-        let f: Symbol<unsafe extern "system" fn() -> OpenSdkResult> = self.sym("OpenSDK_FiniLib")?;
+        let f: Symbol<unsafe extern "system" fn() -> OpenSdkResult> =
+            self.sym("OpenSDK_FiniLib")?;
         let rc = unsafe { f() };
         if rc != 0 {
             return Err(EzvizError::Sdk(format!("OpenSDK_FiniLib failed ({rc})")));
@@ -452,9 +449,7 @@ impl PcSdk {
             )
         };
         if rc != 0 {
-            return Err(EzvizError::Sdk(format!(
-                "OpenSDK_PTZCtrlEx failed ({rc})"
-            )));
+            return Err(EzvizError::Sdk(format!("OpenSDK_PTZCtrlEx failed ({rc})")));
         }
         Ok(())
     }

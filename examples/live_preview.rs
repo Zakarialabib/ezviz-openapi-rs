@@ -11,7 +11,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let serial = std::env::var("EZVIZ_DEVICE_SERIAL")?;
 
     let client = EzvizClient::new(app_key, app_secret);
-    let addr = client.live_hls_address(&serial, 1, VideoQuality::Hd).await?;
+    let addr = client
+        .live_hls_address(&serial, 1, VideoQuality::Hd)
+        .await?;
     println!("{}", addr.url);
     Ok(())
 }

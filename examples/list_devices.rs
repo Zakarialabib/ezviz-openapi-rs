@@ -14,7 +14,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for d in &list.items {
         println!(
             "{}  {}  type={}  online={}",
-            d.device_serial, d.device_name, d.device_type.as_deref().unwrap_or("-"), d.status
+            d.device_serial,
+            d.device_name,
+            d.device_type.as_deref().unwrap_or("-"),
+            d.status
         );
     }
     Ok(())

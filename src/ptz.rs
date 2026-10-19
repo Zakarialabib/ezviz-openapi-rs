@@ -158,7 +158,12 @@ impl EzvizClient {
     }
 
     /// Recall (move to) a preset.
-    pub async fn preset_move(&self, device_serial: &str, channel_no: i32, index: i32) -> Result<()> {
+    pub async fn preset_move(
+        &self,
+        device_serial: &str,
+        channel_no: i32,
+        index: i32,
+    ) -> Result<()> {
         self.call_ack(
             "/api/lapp/device/preset/move",
             &[
