@@ -11,6 +11,7 @@ references).
 | [`01-api-reference.md`](01-api-reference.md) | Authoritative map of the implemented HTTP surface: hosts, endpoint tables, error codes, PCOpenSDK bindings, caveats. |
 | [`01-cctv-integration.md`](01-cctv-integration.md) | How this crate is consumed by the signage platform: live widget, alarm interrupt, snapshot, token broker, phasing. The one document here that describes a *consumer* rather than the crate — its platform-side references (SPEC-001…008, `SIGNAGE_SPEC_PACK_v1.md`, `research/`) live in the signage repository. |
 | [`02-external-refs.md`](02-external-refs.md) | External tooling and SDK references (REA MCP), plus the decision to build on this crate rather than on REA. |
+| [`glossary.md`](glossary.md) | Durable terminology: credentials, devices/channels, streaming protocols, PTZ, alarms and SDK terms. |
 
 ## Absent by design
 
