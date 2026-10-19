@@ -466,6 +466,9 @@ unsafe impl Sync for PcSdk {}
 
 #[cfg(test)]
 mod tests {
+    // Only the `not(windows)` test below uses these; on Windows the module is
+    // empty and importing them would be an unused-import warning.
+    #[cfg(not(target_os = "windows"))]
     use super::*;
 
     #[test]
